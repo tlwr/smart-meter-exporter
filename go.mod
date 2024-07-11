@@ -5,6 +5,7 @@ go 1.22.0
 require (
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
+	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 )
 
 require (
