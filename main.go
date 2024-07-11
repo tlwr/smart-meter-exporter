@@ -5,13 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tarm/serial"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/tlwr/smart-meter-otel-metrics/pkg/p1parser"
 )
@@ -29,6 +34,30 @@ func main() {
 	sigCtx, sigStop := signal.NotifyContext(rootCtx, os.Interrupt, syscall.SIGTERM)
 	defer sigStop()
 
+	log.Println("starting otel")
+	exporter, err := prometheus.New()
+	if err != nil {
+		log.Fatalf("kon niet prometheus starten: %s", err)
+	}
+	provider := metric.NewMeterProvider(metric.WithReader(exporter))
+	meter := provider.Meter("smart-meter-otel-metrics")
+
+	huidigVerbruik, err := meter.Float64Gauge(
+		"verbruik.huidig",
+		otelmetric.WithUnit("kW"),
+	)
+	if err != nil {
+		log.Fatalf("kon niet de huidig verbruik metric maken: %s", err)
+	}
+
+	totaalVerbruik, err := meter.Float64Gauge(
+		"totaal.verbruik",
+		otelmetric.WithUnit("kWh"),
+	)
+	if err != nil {
+		log.Fatalf("kon niet de totaal verbruik metric maken: %s", err)
+	}
+
 	log.Println("starting serial")
 	srl := &serial.Config{
 		Name: *serialPath,
@@ -36,22 +65,22 @@ func main() {
 	}
 	srlPort, err := serial.OpenPort(srl)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("kon niet serial device openen: %s", err))
+		log.Fatalf("kon niet serial device openen: %s", err)
 	}
 
-	serialCtx, cancelSerial := context.WithCancel(sigCtx)
 	wg := sync.WaitGroup{}
+
+	serialCtx, cancelSerial := context.WithCancel(sigCtx)
 	wg.Add(1)
 	go func() {
 		for {
-			log.Println("voor data aan het wachten")
 			time.Sleep(*interval)
 
 			select {
 			case <-serialCtx.Done():
 				log.Println("klaar met lezen van serial")
 				wg.Done()
-				break
+				return
 			default:
 				buf := make([]byte, 1024)
 				n, err := srlPort.Read(buf)
@@ -69,8 +98,20 @@ func main() {
 				if err != nil {
 					log.Fatal(fmt.Errorf("kon niet de telegram parsen: %w", err))
 				}
-				log.Printf("%#v", tg)
+
+				huidigVerbruik.Record(serialCtx, tg.HuidigVerbruik)
+				totaalVerbruik.Record(serialCtx, tg.VerbruikTotaal)
 			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(":9090", nil) //nolint:gosec // Ignoring G114: Use of net/http serve function that has no support for setting timeouts.
+		if err != nil {
+			fmt.Printf("error serving http: %v", err)
+			return
 		}
 	}()
 
