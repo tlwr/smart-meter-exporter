@@ -1,0 +1,12 @@
+[Unit]
+Description=smart-meter-exporter prometheus :9220
+StartLimitIntervalSec=400
+StartLimitBurst=3
+
+[Service]
+ExecStart=/usr/local/bin/smart-meter-exporter
+Restart=always
+RestartSec=90
+
+[Install]
+WantedBy=multi-user.target
