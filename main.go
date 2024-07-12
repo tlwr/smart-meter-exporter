@@ -24,6 +24,7 @@ var (
 	serialPath = flag.String("serial-path", "/dev/ttyUSB0", "path to serial device for p1-over-usb port")
 	baud       = flag.Int("baud", 115200, "baud of serial device")
 	interval   = flag.Duration("interval", 10*time.Second, "how long to wait between serial reads")
+	promAddr   = flag.String("prometheus-addr", ":9220", "listen address for prometheus metrics")
 )
 
 func main() {
@@ -95,7 +96,7 @@ func main() {
 	}()
 
 	promServer := http.Server{
-		Addr: ":9090",
+		Addr: *promAddr,
 		Handler: promhttp.HandlerFor(
 			registry,
 			promhttp.HandlerOpts{
@@ -105,7 +106,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		log.Println("prometheus starten")
+		log.Printf("prometheus starten: %s", *promAddr)
 		err := promServer.ListenAndServe() //nolint:gosec // Ignoring G114: Use of net/http serve function that has no support for setting timeouts.
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("error prometheus server: %v", err)
