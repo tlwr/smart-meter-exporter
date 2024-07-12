@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tarm/serial"
 
-	"github.com/tlwr/smart-meter-otel-metrics/pkg/p1parser"
+	"github.com/tlwr/smart-meter-exporter/pkg/p1parser"
 )
 
 var (

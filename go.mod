@@ -1,4 +1,4 @@
-module github.com/tlwr/smart-meter-otel-metrics
+module github.com/tlwr/smart-meter-exporter
 
 go 1.22.0
 

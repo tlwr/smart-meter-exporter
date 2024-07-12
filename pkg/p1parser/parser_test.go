@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/tlwr/smart-meter-otel-metrics/pkg/p1parser"
+	"github.com/tlwr/smart-meter-exporter/pkg/p1parser"
 )
 
 var (
