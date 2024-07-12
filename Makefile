@@ -5,4 +5,4 @@ lint:
 	golangci-lint run ./...
 
 build:
-	GOOS=linux GOARCH=arm64 go build -o smart-meter-otel-metrics
+	GOOS=linux GOARCH=arm64 go build -o smart-meter-exporter

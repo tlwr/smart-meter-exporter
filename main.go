@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -12,11 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tarm/serial"
-	"go.opentelemetry.io/otel/exporters/prometheus"
-	otelmetric "go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/tlwr/smart-meter-otel-metrics/pkg/p1parser"
 )
@@ -34,31 +33,20 @@ func main() {
 	sigCtx, sigStop := signal.NotifyContext(rootCtx, os.Interrupt, syscall.SIGTERM)
 	defer sigStop()
 
-	log.Println("starting otel")
-	exporter, err := prometheus.New()
-	if err != nil {
-		log.Fatalf("kon niet prometheus starten: %s", err)
-	}
-	provider := metric.NewMeterProvider(metric.WithReader(exporter))
-	meter := provider.Meter("smart-meter-otel-metrics")
+	registry := prometheus.NewRegistry()
 
-	huidigVerbruik, err := meter.Float64Gauge(
-		"verbruik.huidig",
-		otelmetric.WithUnit("kW"),
-	)
-	if err != nil {
-		log.Fatalf("kon niet de huidig verbruik metric maken: %s", err)
-	}
+	huidigVerbruik := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "huidig_verbruik_kw",
+		Help: "Hoeveel stroom is nu gebruikt te zijn",
+	})
+	registry.MustRegister(huidigVerbruik)
 
-	totaalVerbruik, err := meter.Float64Gauge(
-		"totaal.verbruik",
-		otelmetric.WithUnit("kWh"),
-	)
-	if err != nil {
-		log.Fatalf("kon niet de totaal verbruik metric maken: %s", err)
-	}
+	totaalVerbruik := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "totaal_verbruik_kwh",
+		Help: "Hoeveel stroomverbruik is gemeten door de meter",
+	})
+	registry.MustRegister(totaalVerbruik)
 
-	log.Println("starting serial")
 	srl := &serial.Config{
 		Name: *serialPath,
 		Baud: *baud,
@@ -73,6 +61,7 @@ func main() {
 	serialCtx, cancelSerial := context.WithCancel(sigCtx)
 	wg.Add(1)
 	go func() {
+		log.Println("van de serial aan het lezen")
 		for {
 			time.Sleep(*interval)
 
@@ -99,26 +88,48 @@ func main() {
 					log.Fatal(fmt.Errorf("kon niet de telegram parsen: %w", err))
 				}
 
-				huidigVerbruik.Record(serialCtx, tg.HuidigVerbruik)
-				totaalVerbruik.Record(serialCtx, tg.VerbruikTotaal)
+				huidigVerbruik.Set(tg.HuidigVerbruik)
+				totaalVerbruik.Set(tg.VerbruikTotaal)
 			}
 		}
 	}()
 
+	promServer := http.Server{
+		Addr: ":9090",
+		Handler: promhttp.HandlerFor(
+			registry,
+			promhttp.HandlerOpts{
+				EnableOpenMetrics: false,
+			}),
+	}
+
 	wg.Add(1)
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(":9090", nil) //nolint:gosec // Ignoring G114: Use of net/http serve function that has no support for setting timeouts.
-		if err != nil {
-			fmt.Printf("error serving http: %v", err)
+		log.Println("prometheus starten")
+		err := promServer.ListenAndServe() //nolint:gosec // Ignoring G114: Use of net/http serve function that has no support for setting timeouts.
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("error prometheus server: %v", err)
 			return
 		}
+		wg.Done()
 	}()
 
 	<-sigCtx.Done()
 	sigStop()
+	log.Println("signaal te stoppen ontvangen")
 
 	cancelSerial()
+
+	psCtx, psCancel := context.WithTimeout(rootCtx, 15*time.Second)
+	defer psCancel()
+
+	if err := promServer.Shutdown(psCtx); err != nil {
+		log.Fatalf("kon niet prometheus server uitschakkelen: %s", err)
+	} else {
+		log.Println("prometheus gestopd")
+	}
+	psCancel()
+
 	wg.Wait()
-	log.Println("stopping")
+	log.Println("exit")
 }
