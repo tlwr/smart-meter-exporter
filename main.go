@@ -48,6 +48,18 @@ func main() {
 	})
 	registry.MustRegister(totaalVerbruik)
 
+	huidigTeruglevering := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "huidig_teruglevering_kw",
+		Help: "Hoeveel stroom is nu teruggeleverd te zijn",
+	})
+	registry.MustRegister(huidigTeruglevering)
+
+	totalTeruglevering := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "totaal_teruglevering_kwh",
+		Help: "Hoeveel teruglevering is gemeten door de meter",
+	})
+	registry.MustRegister(totalTeruglevering)
+
 	srl := &serial.Config{
 		Name: *serialPath,
 		Baud: *baud,
