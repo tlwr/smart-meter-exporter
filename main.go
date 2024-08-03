@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -87,7 +86,8 @@ func main() {
 				buf := make([]byte, 1024)
 				n, err := srlPort.Read(buf)
 				if err != nil {
-					log.Fatal(fmt.Errorf("kon niet van buffer lezen: %w", err))
+					log.Printf("kon niet van buffer lezen: %s", err)
+					continue
 				}
 				if n == 0 {
 					continue
@@ -98,7 +98,8 @@ func main() {
 				}
 				tg, err := p1parser.Parse(buf)
 				if err != nil {
-					log.Fatal(fmt.Errorf("kon niet de telegram parsen: %w", err))
+					log.Printf("kon niet de telegram parsen: %s", err)
+					continue
 				}
 
 				huidigVerbruik.Set(tg.HuidigVerbruik)
