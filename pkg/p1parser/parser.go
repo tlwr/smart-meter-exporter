@@ -44,6 +44,7 @@ func Parse(b []byte) (*EnergieTelegram, error) {
 
 	for s.Scan() {
 		line := s.Bytes()
+		line = bytes.Trim(line, "\x00")
 
 		if len(line) < 10 {
 			continue
