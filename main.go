@@ -92,7 +92,7 @@ func main() {
 				if n == 0 {
 					continue
 				}
-				if 600 > n || n > 800 {
+				if 600 > n || n > 1024 {
 					log.Printf("overslaan, waarschijnlijk iets mis met data van %d", n)
 					continue
 				}
