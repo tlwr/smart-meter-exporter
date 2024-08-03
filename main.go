@@ -103,6 +103,8 @@ func main() {
 
 				huidigVerbruik.Set(tg.HuidigVerbruik)
 				totaalVerbruik.Set(tg.VerbruikTotaal)
+				huidigTeruglevering.Set(tg.HuidigTeruglevering)
+				totalTeruglevering.Set(tg.TeruggeleverdTotaal)
 			}
 		}
 	}()
