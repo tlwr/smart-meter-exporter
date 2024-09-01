@@ -17,6 +17,7 @@ import (
 	"github.com/tarm/serial"
 
 	"github.com/tlwr/smart-meter-exporter/pkg/p1parser"
+	"github.com/tlwr/smart-meter-exporter/pkg/p1telegramcollector"
 )
 
 var (
@@ -68,6 +69,10 @@ func main() {
 		log.Fatalf("kon niet serial device openen: %s", err)
 	}
 
+	collCtx, cancelColl := context.WithCancel(rootCtx)
+	coll := p1telegramcollector.New()
+	coll.Run(collCtx)
+
 	wg := sync.WaitGroup{}
 
 	serialCtx, cancelSerial := context.WithCancel(sigCtx)
@@ -92,22 +97,34 @@ func main() {
 				if n == 0 {
 					continue
 				}
-				if 600 > n || n > 1024 {
-					log.Printf("overslaan, waarschijnlijk iets mis met data van %d", n)
-					continue
-				}
-				tg, err := p1parser.Parse(buf)
-				if err != nil {
-					log.Printf("kon niet de telegram parsen: %s", err)
-					continue
-				}
 
-				huidigVerbruik.Set(tg.HuidigVerbruik)
-				totaalVerbruik.Set(tg.VerbruikTotaal)
-				huidigTeruglevering.Set(tg.HuidigTeruglevering)
-				totalTeruglevering.Set(tg.TeruggeleverdTotaal)
+				coll.Write(buf)
 			}
 		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		for telegram := range coll.C {
+			if telegram == nil {
+				break
+			}
+
+			tg, err := p1parser.Parse(telegram.Bytes())
+			if err != nil {
+				log.Printf("kon niet de telegram parsen: %s", err)
+				continue
+			}
+
+			log.Printf("telegram %v", tg)
+
+			huidigVerbruik.Set(tg.HuidigVerbruik)
+			totaalVerbruik.Set(tg.VerbruikTotaal)
+			huidigTeruglevering.Set(tg.HuidigTeruglevering)
+			totalTeruglevering.Set(tg.TeruggeleverdTotaal)
+		}
+
+		wg.Done()
 	}()
 
 	promServer := http.Server{
@@ -134,6 +151,7 @@ func main() {
 	sigStop()
 	log.Println("signaal te stoppen ontvangen")
 
+	cancelColl()
 	cancelSerial()
 
 	psCtx, psCancel := context.WithTimeout(rootCtx, 15*time.Second)
