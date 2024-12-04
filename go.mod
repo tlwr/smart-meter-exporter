@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.22.0
-	github.com/onsi/gomega v1.35.1
+	github.com/onsi/gomega v1.36.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 )
