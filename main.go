@@ -60,6 +60,24 @@ func main() {
 	})
 	registry.MustRegister(totalTeruglevering)
 
+	actieveStroomP1 := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "actieve_stroom_p1_kw",
+		Help: "Huidige stroom van het laatste meetpunt P1",
+	})
+	registry.MustRegister(actieveStroomP1)
+
+	actieveStroomP2 := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "actieve_stroom_p2_kw",
+		Help: "Huidige stroom van het laatste meetpunt P3",
+	})
+	registry.MustRegister(actieveStroomP2)
+
+	actieveStroomP3 := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "actieve_stroom_p3_kw",
+		Help: "Huidige stroom van het laatste meetpunt P3",
+	})
+	registry.MustRegister(actieveStroomP3)
+
 	srl := &serial.Config{
 		Name: *serialPath,
 		Baud: *baud,
@@ -122,6 +140,24 @@ func main() {
 			totaalVerbruik.Set(tg.VerbruikTotaal)
 			huidigTeruglevering.Set(tg.HuidigTeruglevering)
 			totalTeruglevering.Set(tg.TeruggeleverdTotaal)
+
+			if tg.ActieveStroomPositiefP1 > 0.0 {
+				actieveStroomP1.Set(tg.ActieveStroomPositiefP1)
+			} else {
+				actieveStroomP1.Set(tg.ActieveStroomNegatiefP1)
+			}
+
+			if tg.ActieveStroomPositiefP2 > 0.0 {
+				actieveStroomP2.Set(tg.ActieveStroomPositiefP2)
+			} else {
+				actieveStroomP2.Set(tg.ActieveStroomNegatiefP2)
+			}
+
+			if tg.ActieveStroomPositiefP3 > 0.0 {
+				actieveStroomP3.Set(tg.ActieveStroomPositiefP3)
+			} else {
+				actieveStroomP3.Set(tg.ActieveStroomNegatiefP3)
+			}
 		}
 
 		wg.Done()
