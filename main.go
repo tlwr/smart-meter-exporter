@@ -144,19 +144,19 @@ func main() {
 			if tg.ActieveStroomPositiefP1 > 0.0 {
 				actieveStroomP1.Set(tg.ActieveStroomPositiefP1)
 			} else {
-				actieveStroomP1.Set(tg.ActieveStroomNegatiefP1)
+				actieveStroomP1.Set(-1 * tg.ActieveStroomNegatiefP1)
 			}
 
 			if tg.ActieveStroomPositiefP2 > 0.0 {
 				actieveStroomP2.Set(tg.ActieveStroomPositiefP2)
 			} else {
-				actieveStroomP2.Set(tg.ActieveStroomNegatiefP2)
+				actieveStroomP2.Set(-1 * tg.ActieveStroomNegatiefP2)
 			}
 
 			if tg.ActieveStroomPositiefP3 > 0.0 {
 				actieveStroomP3.Set(tg.ActieveStroomPositiefP3)
 			} else {
-				actieveStroomP3.Set(tg.ActieveStroomNegatiefP3)
+				actieveStroomP3.Set(-1 * tg.ActieveStroomNegatiefP3)
 			}
 		}
 
